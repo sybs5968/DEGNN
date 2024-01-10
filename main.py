@@ -66,6 +66,7 @@ def main():
         return
     (G, labels), task = read_file(args, logger)
     dataloaders, out_features = get_data(G, task=task, labels=labels, args=args, logger=logger)
+    # out_featires是去重之后的标签个数
     storage = estimate_storage(dataloaders, ['train_loader', 'val_loader', 'test_loader'], logger)
     model = get_model(layers=args.layers, in_features=dataloaders[0].dataset[0].x.shape[-1], out_features=out_features,
                       prop_depth=args.prop_depth, args=args, logger=logger)

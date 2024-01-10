@@ -58,8 +58,10 @@ class GNNModel(nn.Module):
         device = x.device
         set_indices, batch, num_graphs = batch.set_indices, batch.batch, batch.num_graphs
         num_nodes = torch.eye(num_graphs)[batch].to(device).sum(dim=0)
+        # 计算每个图中的节点个数，num_nodes shape = [1 * num_graphs]
         zero = torch.tensor([0], dtype=torch.long).to(device)
         index_bases = torch.cat([zero, torch.cumsum(num_nodes, dim=0, dtype=torch.long)[:-1]])
+        # 把num_nodes的最后一项去掉，然后最前面加个零
         index_bases = index_bases.unsqueeze(1).expand(-1, set_indices.size(-1))
         assert(index_bases.size(0) == set_indices.size(0))
         set_indices_batch = index_bases + set_indices
