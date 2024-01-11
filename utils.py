@@ -1,6 +1,5 @@
 from param import *
 
-
 def read_file():
     """读取数据文件
 
@@ -60,9 +59,7 @@ def get_features_sp(G , set_index , max_sp = 3):
     onehot_encoding = np.eye(dim, dtype=np.float64)
     # print(onehot_encoding[sp_length].shape , sp_length.shape)
     features_sp = onehot_encoding[sp_length].sum(axis=1)
-
     return features_sp
-
 
 
 def extract_subgaphs(G , labels , set_indices , prop_depth = 1 , layers = 2):
@@ -129,7 +126,7 @@ def load_datasets(data_list , train_mask , val_mask , test_mask , batch_size = 6
     test_loader  = DataLoader(test_set, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=num_workers)
     return train_loader , val_loader , test_loader
 
-def get_data(G , labels):
+def get_data(G , labels , size = 1.0):
     G = deepcopy(G)
     set_indices = list(range(len(labels)))
     random.shuffle(set_indices)
@@ -146,4 +143,7 @@ def get_data(G , labels):
     train_mask[train_indices] = 1
     val_mask[val_indices] = 1
     test_mask[test_indices] = 1
-    return load_datasets(data_list , train_mask , val_mask , test_mask) , len(np.unique(labels))
+    train_loader , val_loader , test_loader = load_datasets(data_list , train_mask , val_mask , test_mask)
+    return train_loader , val_loader , test_loader , len(np.unique(labels))
+
+# def get_model(in_features , out_feature , layers = 1 , prop_depth = 1 , )
