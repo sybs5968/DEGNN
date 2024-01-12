@@ -16,4 +16,4 @@ file_path = r"data/node_classification/brazil-airports/"
 test_ratio = 0.1
 default_lr = 1e-4
 default_wd = 0
-default_epochs = 1000
+default_epochs = 100
