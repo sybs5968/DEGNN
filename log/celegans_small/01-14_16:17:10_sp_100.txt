@@ -1,0 +1,4 @@
+01-14-2024 16:17:20 INFO: epoch    0 best test acc: 0.5439, train loss: 0.6839; train acc: 0.5230, val acc: 0.5088, test acc: 0.5439
+01-14-2024 16:17:22 INFO: epoch    1 best test acc: 0.6754, train loss: 0.6770; train acc: 0.6118, val acc: 0.6140, test acc: 0.6754
+01-14-2024 16:17:24 INFO: epoch    2 best test acc: 0.7105, train loss: 0.6691; train acc: 0.6798, val acc: 0.7368, test acc: 0.7105
+01-14-2024 16:17:26 INFO: epoch    3 best test acc: 0.7105, train loss: 0.6625; train acc: 0.6601, val acc: 0.7018, test acc: 0.6491

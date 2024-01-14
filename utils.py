@@ -1,5 +1,16 @@
 import os
 from param import *
+from datetime import datetime
+
+def check(args):
+    if args.model not in ["DE-GNN" , "GIN" , "GCN" , "GAT" , "GraphSAGE"]:
+        return "model should be [DE-GNN , GIN , GCN , GAT , GraphSAGE]"
+    if args.dataset not in ["brazil-airports" , "europe-airports" , "usa-airports" , "celegans_small" , "celegans" , "ns" , "pb"]:
+        return "dataset should be [brazil-airports , europe-airports , usa-airports , celegans , ns , pb]"
+    if args.feature not in ["sp" , "wr"]:
+        return "feature should be [sp , wr]"
+    return ""
+
 
 def read_file(args):
     """读取数据文件
@@ -8,10 +19,13 @@ def read_file(args):
         networkx , np.array(num_nodes): G , labels , 图和标签
     """
     edges , node_id_mapping = [] , dict()
-    if args.dataset in ["brazil-airports"]:
+    if args.dataset in ["brazil-airports" , "europe-airports" , "usa-airports"]:
         task = "node_classification"
-    elif args.dataset in ["celegans_small"]:
+    elif args.dataset in ["celegans_small" , "celegans" , "ns" , "pb"]:
         task = "link_prediction"
+    else:
+        task = "triplet_prediction"
+    
     file_path = "data/" + task + '/' + args.dataset + '/'
     if task == "node_classification":
         labels = []
@@ -31,14 +45,16 @@ def read_file(args):
 
     with open(file_path + "edges.txt") as f:
         for line in f.readlines():
-            u , v = line.strip().split()
+            u , v = line.strip().split()[:2]
             edges.append([node_id_mapping[u] , node_id_mapping[v]])
 
     G = nx.Graph(edges)
     G_degree = np.array([G.degree[i] for i in range(G.number_of_nodes())] , dtype=np.float32)
     attributes = np.expand_dims(np.log(G_degree + 1) , 1).astype(np.float32)
     G.graph["attributes"] = attributes
-    labels = np.array(labels)
+    if labels is not None:
+        labels = np.array(labels)
+    
     return G , labels , task
 
 def get_features_sp(G , set_index , max_sp = 3):
@@ -67,7 +83,30 @@ def get_features_sp(G , set_index , max_sp = 3):
     features_sp = onehot_encoding[sp_length].sum(axis=1)
     return features_sp
 
-def get_data_sample(G , set_index , hop_num , label):
+def get_features_wr(G , set_index , max_wr = 3):
+    adj = np.asarray(nx.adjacency_matrix(G, nodelist=np.arange(G.number_of_nodes(), dtype=np.int32)).todense().astype(np.float32))  # [n_nodes, n_nodes]
+    epsilon = 1e-6
+    adj = adj / (adj.sum(1 , keepdims=True) + epsilon)
+    wr_list = [np.identity(adj.shape[0])[set_index]]
+    for _ in range(max_wr):
+        wr = np.matmul(wr_list[-1] , adj)
+        wr_list.append(wr)
+    feature_wr = np.stack(wr_list , axis=2).sum(axis=0)
+    return feature_wr
+
+# def get_features_rw_sample(adj, node_set, rw_depth):
+#     epsilon = 1e-6
+#     adj = adj / (adj.sum(1, keepdims=True) + epsilon)
+#     rw_list = [np.identity(adj.shape[0])[node_set]]
+#     for _ in range(rw_depth):
+#         rw = np.matmul(rw_list[-1], adj)
+#         rw_list.append(rw)
+#     features_rw_tmp = np.stack(rw_list, axis=2)  # shape [set_size, N, F]
+#     # pooling
+#     features_rw = features_rw_tmp.sum(axis=0)
+#     return features_rw
+
+def get_data_sample(G , set_index , hop_num , label , feature="sp" , feature_limit=3):
     set_index = list(set_index)
     if len(set_index) > 1:
         G = G.copy()
@@ -89,14 +128,18 @@ def get_data_sample(G , set_index , hop_num , label):
         if new_attributes.dim() < 2:
             new_attributes.unsqueeze_(1)
         x_list.append(new_attributes) # col = 1
-    features_sp = torch.from_numpy(get_features_sp(new_G , np.array(new_set_index))).float()
-    x_list.append(features_sp) # col = 5
+    if feature == "sp":
+        features_sp = torch.from_numpy(get_features_sp(new_G , np.array(new_set_index) , max_sp = feature_limit)).float()
+        x_list.append(features_sp) # col = 5
+    if feature == "wr":
+        features_rw = torch.from_numpy(get_features_wr(new_G , np.array(new_set_index), max_wr = feature_limit)).float()
+        x_list.append(features_rw)
     x = torch.cat(x_list , dim=-1)
     y = torch.tensor([label], dtype=torch.long) if label is not None else torch.tensor([0], dtype=torch.long)
     new_set_index = new_set_index.long().unsqueeze(0)
     return Data(x=x , edge_index=new_edge_index , y=y , set_indices=new_set_index)
 
-def extract_subgaphs(G , labels , set_indices , prop_depth = 1 , layers = 2):
+def extract_subgaphs(G , labels , set_indices , feature = "sp" , feature_limit = 3 , prop_depth = 1 , layers = 2):
     """获取子图列表
 
     Args:
@@ -112,7 +155,7 @@ def extract_subgaphs(G , labels , set_indices , prop_depth = 1 , layers = 2):
     data_list = []
     hop_num = prop_depth * layers + 1
     for i in tqdm(range(set_indices.shape[0])):
-        data = get_data_sample(G , set_indices[i] , hop_num , labels[i] if labels is not None else None)
+        data = get_data_sample(G , set_indices[i] , hop_num , labels[i] if labels is not None else None , feature=feature , feature_limit = feature_limit)
         data_list.append(data)
     return data_list
 
@@ -149,13 +192,16 @@ def get_data(G , labels , task , args , size = 1.0):
     """
 
     G = deepcopy(G)
-    if labels:
+
+    if labels is not None:
 
         set_indices = np.random.choice(G.number_of_nodes() , G.number_of_nodes() , replace=False)
+        print(labels.shape)
+        print(set_indices.shape)
         labels = labels[set_indices]
-        set_indices = np.expand_dims(set_indices , dim = 1)
+        set_indices = np.expand_dims(set_indices , 1)
 
-        data_list = extract_subgaphs(G , labels , set_indices)
+        data_list = extract_subgaphs(G , labels , set_indices , feature=args.feature , feature_limit = args.feature_limit)
 
         train_indices , val_test_indices = train_test_split(list(range(set_indices.shape[0])) , test_size=args.test_ratio * 2 , stratify=labels)
         val_test_labels = np.array([data_list[i].y for i in val_test_indices])
@@ -202,7 +248,9 @@ def get_data(G , labels , task , args , size = 1.0):
         set_indices = set_indices[permutation]
         test_mask = test_mask[permutation]
         train_mask = train_mask[permutation]
-        data_list = extract_subgaphs(G , labels , set_indices)
+
+        data_list = extract_subgaphs(G , labels , set_indices , feature = args.feature , feature_limit = args.feature_limit)
+
         val_test_indices = np.arange(len(data_list))[test_mask.astype(bool)]
         val_test_labels = np.array([data_list[i].y for i in val_test_indices])
         val_indices , test_indices = train_test_split(val_test_indices , test_size=0.5 , stratify=val_test_labels)
@@ -227,3 +275,6 @@ def set_random_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
+
+def logINFO(s , logger):
+    logger.write(datetime.now().strftime("%m-%d-%Y %H:%M:%S") + " INFO: " + s + "\n")
