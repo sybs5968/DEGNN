@@ -1,8 +1,0 @@
-01-14-2024 17:09:55 INFO: epoch    0 best test acc: 0.4074, train loss: 1.3383; train acc: 0.3590, val acc: 0.3077, test acc: 0.4074
-01-14-2024 17:09:56 INFO: epoch    1 best test acc: 0.4074, train loss: 1.3359; train acc: 0.3590, val acc: 0.3077, test acc: 0.4074
-01-14-2024 17:09:56 INFO: epoch    2 best test acc: 0.4074, train loss: 1.3321; train acc: 0.3846, val acc: 0.3077, test acc: 0.4074
-01-14-2024 17:09:57 INFO: epoch    3 best test acc: 0.4074, train loss: 1.3270; train acc: 0.3846, val acc: 0.3077, test acc: 0.4074
-01-14-2024 17:09:57 INFO: epoch    4 best test acc: 0.4074, train loss: 1.3207; train acc: 0.3846, val acc: 0.3077, test acc: 0.4074
-01-14-2024 17:09:58 INFO: epoch    5 best test acc: 0.4074, train loss: 1.3130; train acc: 0.4231, val acc: 0.3077, test acc: 0.4074
-01-14-2024 17:09:59 INFO: epoch    6 best test acc: 0.4074, train loss: 1.3041; train acc: 0.4872, val acc: 0.3462, test acc: 0.4074
-01-14-2024 17:09:59 INFO: epoch    7 best test acc: 0.4815, train loss: 1.2943; train acc: 0.5513, val acc: 0.4231, test acc: 0.4815
